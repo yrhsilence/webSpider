@@ -3,3 +3,4 @@ http://www.google.com/
 http://www.baidu.com/
 http://www.sina.com.cn/
 http://news.qq.com/
+http://a.com/
