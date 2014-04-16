@@ -1,0 +1,45 @@
+Python代码
+
+    #-*-coding:utf-8-*-
+    import HTMLParser
+    #html解析，继承HTMLParser类
+    class MyHTMLParser(HTMLParser.HTMLParser):
+    def _init(self):
+    HTMLParser.HTMLParser.__init__(self);
+    # 处理开始标签和结束标签 – finish processing of start+end tag: <tag…/>
+    def handle_startendtag(self, tag, attrs):
+    self.handle_starttag(tag, attrs)
+    self.handle_endtag(tag)
+    #handle start tag
+    #处理开始标签和结束标签 这里打印出a标签的href的属性值
+    def handle_starttag(self,tag, attrs):
+    if tag==‘a’:
+    for name,value in attrs:
+    if name==‘href’:
+    print value
+    # 处理结束标签，比如</xx> – handle end tag
+    def handle_endtag(self,tag):
+    pass;
+    # 处理特殊字符串，就是以&#开头的，一般是内码表示的字符 – handle character reference
+    def handle_charref(self, name):
+    pass
+    # 处理一些特殊字符，以&开头的，比如 &nbsp; – handle entity reference
+    def handle_entityref(self, name):
+    pass
+    # 处理数据，就是<xx>data</xx>中间的那些数据 – handle data
+    def handle_data(self, data):
+    pass
+    # 处理注释 – handle comment
+    def handle_comment(self, data):
+    pass
+    # 处理<!开头的，比如<!DOCTYPE html PUBLIC ”-//W3C//DTD HTML 4.01 Transitional//EN” – handle declaration
+    def handle_decl(self, decl):
+    pass
+    # 处理形如<?instruction>的东西 – handle processing instruction
+    def handle_pi(self, data):
+    pass
+    a=‘<body><a href=”www.163.com”>test</a></body>’
+    print a
+    my=MyHTMLParser()
+    my.feed(a)
+    #结果为www.163.com

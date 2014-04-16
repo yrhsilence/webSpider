@@ -1,0 +1,126 @@
+Python：开发简易搜索引擎
+kenneth @ 2007-12-27 00:43
+
+原作：serpia.org
+翻译：nasi
+
+对于内容性的站点来说，搜索引擎真是一个不错的东东。不需要再为了找自己要看的东西翻遍整个网站，而只是输入关键字，让脚本来帮你找。这里，我写了个简单的站内搜索引擎，并且要讲解一下它是如何实现的。这个搜索引擎非常简单，但是很容易扩展。比如，如果你用 urllib 包来抓取网页，而不是仅仅索引本地的文件，你就可以用它来搜索 internet 上的其他站点了。
+你所要做的是 …
+
+    建立一个数据库用来储存所有的单词和这些单词的出现位置 (在示例中我使用的是 MySQL )
+    一个查找单词和单词出现位置的脚本，并将其存入数据库中
+    一个 HTML 的搜索表单
+    一个用来从数据库中搜索用户提交的关键字的脚本
+    一个返回搜索结果的页面，搜索结果要链向搜索到的相关页面
+
+创建数据库
+
+在你的MySQL数据库中创建一个表 (table)，命名为 search。我们需要以下5列：
+
+    search_id, INTEGER, NOT NULL, AUTO_INCREMENT, UNSIGNED
+    word, VARCHAR(50), NOT NULL
+    occurrence, INTEGER, NOT NULL, UNSIGNED
+    url, VARCHAR(200), NOT NULL
+    link, VARCHAR(200), NOT NULL
+
+然后，把 search_id 设定为主键 (PRIMARY KEY)。
+
+如果你觉得创建一个 MySQL 数据库有困难的话，不要怕，在互联网上相关的资源非常多。或者你可以看看这个。确定已经把数据表放到你的服务器上，另外还要注意一下安全问题。稍后再继续这个话题 …
+Python 索引器
+
+Python 索引器会遍历整个页面的正文，并记录每个单词及出现的位置。代码如下：
+
+import string
+import sys
+import re
+import MySQLdb
+ 
+# open database and make cursor
+conn = MySQLdb.connect(host = "localhost",
+                       user = "root",
+                       passwd = "***",
+                       db = "***")
+cursor = conn.cursor()
+# first empty the database
+cursor.execute('''TRUNCATE TABLE words''')
+ 
+def makeIndex(myurl, link):
+    # open local html file
+    href = link
+    page = myurl
+    f = open(page, "rb")
+    f.close
+ 
+    # initialize stuff here
+    wordcount = 0
+    words     = { }
+ 
+    for line in f.readlines() :
+        line = string.strip( line ) 
+        for word in re.split(
+                "[" + string.whitespace + string.punctuation + "]+" ,
+                line ) :
+            word = string.lower( word )
+            if re.match( "^[" + string.lowercase + "]+$" , word ) :
+                wordcount += 1
+                if words.has_key( word ) :
+                    words[ word ] += 1
+                else :
+                    words[ word ] = 1
+    sorted_word_list = words.keys()
+    sorted_word_list.sort()
+ 
+    # now populate the database
+    for word in sorted_word_list :
+        cursor.execute('''INSERT INTO words (word, occurrence, url, link) 
+	VALUES (%s,%s,%s,%s)''',(word,words[word],page,href))
+ 
+# index every page of your website
+makeIndex("yourpage1.html", "a href=\"yourpage1\">My page 1")
+makeIndex("yourpage2.html", "a href=\"yourpage2\">My page 2")
+# etcetera...
+cursor.close()
+
+在运行这个脚本以后 (别忘了把代码中的 yourpage 换成真正的页面)，刚刚你创建的数据表中已经填充了每个单词和它在页面上的出现位置。(译者注：由于这个 parser 太过于简单，所以 html tag 也会被当作“单词”被记录下来，换个 parser 就可以解决这个问题) 如果你的网站内容变化了，你就需要再运行一次这个脚本。也许一天一次，或者一天两次，这个还是取决于你自己的个人情况。
+HTML 搜索表单
+
+你可能经常看到在一个页面的上边或者侧边栏上有个搜索框。把这个 HTML 代码放到你页面的某个地方：
+
+<form action="cgi-bin/search.py">
+  <input name="word" type="text" size="14">
+  <input value="SerpiaSearch" type="submit">
+</form>
+
+这里有关于创建 HTML 表单的详细信息。这个表单中最核心的就是 cgi-bin/search.py 这个脚本，我们下一节就会开始探究这个脚本。
+搜索脚本
+
+下面的脚本通过给定的单词来从数据库中查找结果，为了省事我们就叫它 search.py 了：
+
+conn = MySQLdb.connect(host = "localhost",
+                       user = "searcher",
+                       passwd = "***",
+                       db = "***")
+cursor = conn.cursor()
+# get results
+cursor.execute('''SELECT occurrence,url,link FROM words WHERE word=%s 
+		ORDER BY occurrence DESC''',(word))
+result = cursor.fetchall()
+cursor.close
+
+搜索结果页
+
+最后，我们得把搜索结果通过页面显示出来。搜索结果页面上要显示搜索的关键字、关键字出现的次数以及链到搜索到的页面的链接。
+
+<table style="text-align: left; width: 100%;"
+ border="1" cellpadding="2" cellspacing="2">
+  <tbody>
+    <tr>
+      <td style="background-color: #99CCFF;" >Hits</td>
+      <td style="background-color: #99CCFF;" >Page Link</td>
+    </tr>
+    for row in result:
+    <tr>
+      <td> row[0] </td> <td> row[2]</td>
+    </tr>      
+  </tbody>
+</table>
